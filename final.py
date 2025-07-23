@@ -10,6 +10,10 @@ import json
 import numpy as np
 import plotly.graph_objects as go
 
+import matplotlib.pyplot as plt
+from datetime import date
+from dateutil.relativedelta import relativedelta
+
 # --- CONFIGURAÇÕES DE LOCALIZAÇÃO E PÁGINA ---
 # ADICIONE ESTA NOVA FUNÇÃO NA PARTE 2
 
@@ -194,7 +198,12 @@ df_final['PL_Total_Gestora_Mes'] = df_final.groupby(['Gestora', 'DT_COMPTC'])['V
 # CÓDIGO FINAL E COMPLETO PARA A ABA 1
 # ==========================================================================
 
-tab1, tab2, tab3 = st.tabs(["Análise por Gestora", "Análise por Ativo", "Movimentações Relevantes"])
+tab1, tab2, tab3, tab4 = st.tabs([
+    "Análise por Gestora", 
+    "Análise por Ativo", 
+    "Movimentações Relevantes", 
+    "Razão de Tickers"
+])
 
 with tab1:
     st.header("Análise por Gestora", divider='blue')
@@ -525,3 +534,58 @@ with tab3:
                                  ['Gestora', 'Ativo', 'Part. Inicial', 'Part. Final', '% PL Final Formatado',
                                   'Redução Relativa']],
                              use_container_width=True, hide_index=True)
+
+# Adicione este bloco inteiro no final do seu script final.py
+
+# ==========================================================================
+# PARTE 7: ABA 4 - RAZÃO DE TICKERS
+# ==========================================================================
+with tab4:
+    st.header('Razão de Tickers', divider='blue') # Trocado para st.header para manter o padrão
+    st.sidebar.title("Parâmetros da Razão") # Título específico na sidebar
+
+    # Inicializa datas em session_state
+    today = date.today()
+    if 'start_date' not in st.session_state:
+        st.session_state.start_date = date(2020, 1, 1)
+    if 'end_date' not in st.session_state:
+        st.session_state.end_date = today
+
+    # Campos de entrada de ticker
+    ticker1 = st.sidebar.text_input('Ticker 1', 'ITUB3').strip().upper()
+    ticker2 = st.sidebar.text_input('Ticker 2', 'ITUB4').strip().upper()
+
+    # Subtítulo e botões de período rápido
+    st.sidebar.subheader("Selecione um período rápido")
+    periodos = {
+        "YTD": lambda: (date(today.year, 1, 1), today),
+        "1M":  lambda: (today - relativedelta(months=1), today),
+        "3M":  lambda: (today - relativedelta(months=3), today),
+        "6M":  lambda: (today - relativedelta(months=6), today),
+        "1Y":  lambda: (today - relativedelta(years=1), today),
+        "2Y":  lambda: (today - relativedelta(years=2), today),
+        "5Y":  lambda: (today - relativedelta(years=5), today),
+        "10Y": lambda: (today - relativedelta(years=10), today),
+    }
+
+    # Botões de período rápido
+    cols1 = st.sidebar.columns(4)
+    for col, key in zip(cols1, ["YTD", "1M", "3M", "6M"]):
+        if col.button(key, use_container_width=True):
+            st.session_state.start_date, st.session_state.end_date = periodos[key]()
+
+    cols2 = st.sidebar.columns(4)
+    for col, key in zip(cols2, ["1Y", "2Y", "5Y", "10Y"]):
+        if col.button(key, use_container_width=True):
+            st.session_state.start_date, st.session_state.end_date = periodos[key]()
+
+    # Entradas de data manual
+    start_date = st.sidebar.date_input('Data Início', value=st.session_state.start_date, format='DD/MM/YYYY')
+    end_date = st.sidebar.date_input('Data Fim', value=st.session_state.end_date, format='DD/MM/YYYY')
+    atualizar = st.sidebar.button('Plotar Razão', use_container_width=True)
+
+    # Lógica de plotagem que estava no final do script
+    if not atualizar:
+        plotar_ratio(ticker1, ticker2, st.session_state.start_date, st.session_state.end_date)
+    else:
+        plotar_ratio(ticker1, ticker2, start_date, end_date)
