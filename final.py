@@ -116,7 +116,43 @@ def formatar_moeda_brl(valor):
     valor_formatado = f'{valor:,.2f}'.replace(",", "X").replace(".", ",").replace("X", ".")
     return f"R$ {valor_formatado}"
 
+def plotar_ratio(t1, t2, start, end):
+    """
+    Baixa os dados de dois tickers, calcula a razão entre eles e plota o gráfico.
+    """
+    # Garante que o sufixo .SA (B3) seja adicionado se não estiver presente
+    t1_full = t1 if t1.upper().endswith('.SA') else f'{t1}.SA'
+    t2_full = t2 if t2.upper().endswith('.SA') else f'{t2}.SA'
+    
+    # Baixa apenas a coluna 'Close' e remove linhas com dados faltantes
+    df = yf.download([t1_full, t2_full], start=start, end=end)['Close'].dropna()
 
+    # Verifica se os dados para ambos os tickers foram retornados
+    if df.empty or len(df.columns) < 2:
+        st.warning("Não foi possível obter dados para ambos os tickers no período selecionado.")
+        return
+
+    # Calcula a razão e as estatísticas
+    ratio = df[t1_full] / df[t2_full]
+    media = ratio.mean()
+    std = ratio.std()
+
+    # Cria o gráfico usando Matplotlib
+    fig, ax = plt.subplots(figsize=(14, 6))
+    ax.plot(ratio.index, ratio, label=f'Razão {t1}/{t2}')
+    ax.axhline(media, color='red', linestyle='--', label=f'Média ({media:.2f})')
+    ax.axhline(media + std, color='orange', linestyle=':', label=f'+1σ ({media + std:.2f})')
+    ax.axhline(media - std, color='orange', linestyle=':', label=f'-1σ ({media - std:.2f})')
+    
+    # Configurações visuais do gráfico
+    ax.set_title(f'Razão entre {t1} e {t2}')
+    ax.set_xlabel('Data')
+    ax.set_ylabel('Ratio')
+    ax.grid(True, linestyle='--', alpha=0.6)
+    ax.legend()
+    
+    # Exibe o gráfico no Streamlit
+    st.pyplot(fig)
 
 # ==========================================================================
 # PARTE 3: LÓGICA PRINCIPAL E PROCESSAMENTO DE DADOS
