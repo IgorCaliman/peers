@@ -11,11 +11,7 @@ import numpy as np
 import plotly.graph_objects as go
 
 # --- CONFIGURAÇÕES DE LOCALIZAÇÃO E PÁGINA ---
-try:
-    locale.setlocale(locale.LC_ALL, 'pt_BR.UTF-8')
-except locale.Error:
-    st.error("Locale 'pt_BR.UTF-8' não encontrado. Usando a configuração padrão do sistema.")
-    locale.setlocale(locale.LC_ALL, '')
+# ADICIONE ESTA NOVA FUNÇÃO NA PARTE 2
 
 st.set_page_config(layout="wide", page_title="Análise Consolidada de Carteiras")
 st.title('📊 Dashboard: Análise de Gestoras e Ativos')
@@ -106,6 +102,16 @@ def carregar_e_processar_planilha_wide(caminho_arquivo, nome_planilha, nome_colu
     except Exception as e:
         st.error(f"Erro desconhecido ao processar a planilha '{nome_planilha}': {e}");
         st.stop()
+
+
+def formatar_moeda_brl(valor):
+    """Formata um número como moeda no padrão BRL (R$ 1.234,56)."""
+    if pd.isna(valor):
+        return "N/A"
+    # Formata com vírgula de milhar e duas casas decimais, usando placeholders
+    valor_formatado = f'{valor:,.2f}'.replace(",", "X").replace(".", ",").replace("X", ".")
+    return f"R$ {valor_formatado}"
+
 
 
 # ==========================================================================
@@ -235,10 +241,8 @@ with tab1:
             st.subheader("Exposição Total em Ações (Consolidado)")
             tabela_para_exibir = dados_gestora_mes.sort_values(by='Perc_PL', ascending=False)
             df_display = tabela_para_exibir.copy()
-            df_display['Valor (R$)'] = df_display['Valor_Consolidado_R'].apply(
-                lambda x: locale.currency(x, symbol=True, grouping=True))
-            df_display['Market Cap (R$)'] = df_display['Market_Cap_Cia_R'].apply(
-                lambda x: 'R$ ' + locale.format_string('%.0f', x, grouping=True) if pd.notna(x) else 'N/A')
+            df_display['Valor (R$)'] = df_display['Valor_Consolidado_R'].apply(formatar_moeda_brl)
+            df_display['Market Cap (R$)'] = df_display['Market_Cap_Cia_R'].apply(formatar_moeda_brl)
             df_display['% do PL'] = df_display['Perc_PL'].apply(lambda x: f'{x:.2f}%')
             df_display['% da Cia'] = df_display['Perc_Cia'].apply(lambda x: f'{x:.2f}%' if pd.notna(x) else 'N/A')
 
@@ -381,8 +385,7 @@ with tab2:
                                 0.30 * df_filtrado_ativo['Volume_Medio_Financeiro_60d']) / 1000
 
                 df_display_ativo = df_filtrado_ativo.sort_values(by="Valor_Consolidado_R", ascending=False)
-                df_display_ativo['Posição (R$)'] = df_display_ativo['Valor_Consolidado_R'].apply(
-                    lambda x: locale.currency(x, symbol=True, grouping=True))
+                df_display_ativo['Posição (R$)'] = df_display_ativo['Valor_Consolidado_R'].apply(formatar_moeda_brl)
                 df_display_ativo['% da Cia'] = df_display_ativo['Perc_Cia'].apply(
                     lambda x: f'{x:.2f}%' if pd.notna(x) else 'N/A')
 
