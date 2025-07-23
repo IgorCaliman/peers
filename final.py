@@ -113,10 +113,10 @@ def carregar_e_processar_planilha_wide(caminho_arquivo, nome_planilha, nome_colu
 # ==========================================================================
 
 # --- Carregamento Inicial ---
-mapa_gestora_fundo = carregar_mapeamento_gestora_fundo(os.path.join(CAMINHO_DA_PASTA, NOME_ARQUIVO_LISTA_FUNDOS))
-dados_brutos = carregar_dados_historicos(PASTA_DADOS_FILTRADOS, MESES_PARA_ANALISE)
 
-# ALTERADO: Usando a nova função genérica para carregar market cap e liquidez do mesmo arquivo.
+mapa_gestora_fundo = carregar_mapeamento_gestora_fundo(os.path.join(CAMINHO_DA_PASTA, NOME_ARQUIVO_LISTA_FUNDOS))
+dados_brutos = carregar_dados_historicos(CAMINHO_DA_PASTA, MESES_PARA_ANALISE)
+
 df_market_caps = carregar_e_processar_planilha_wide(
     os.path.join(CAMINHO_DA_PASTA, ARQUIVO_ECONOMATICA_XLSX),
     'marketcap',
