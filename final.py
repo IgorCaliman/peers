@@ -236,7 +236,7 @@ paginas = ["Análise por gestora",
            "Análise por ativo",
            "Movimentações relevantes",
            "Razão tickers"]
-pagina  = nav_container.selectbox("🏷️ Página:", paginas)
+pagina  = nav_container.selectbox("Página:", paginas)
 
 sidebar = filtros_container.empty()             # placeholder dos filtros
 
