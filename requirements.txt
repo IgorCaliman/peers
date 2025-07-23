@@ -3,3 +3,6 @@ pandas
 plotly
 numpy
 openpyxl
+yfinance
+matplotlib
+python-dateutil
