@@ -9,7 +9,7 @@ import locale
 import json
 import numpy as np
 import plotly.graph_objects as go
-
+import yfinance as yf
 import matplotlib.pyplot as plt
 from datetime import date
 from dateutil.relativedelta import relativedelta
