@@ -30,7 +30,7 @@ ARQUIVO_TICKERS_LIMPOS = "tickers_unicos_limpos.json"
 ARQUIVO_ECONOMATICA_XLSX = "economatica.xlsx"
 
 # Meses para análise e paleta de cores para os gráficos
-MESES_PARA_ANALISE = ['202410', '202411', '202412']
+MESES_PARA_ANALISE = ['202410','202411','202412','202501','202502','202503','202504']
 PALETA_DE_CORES = ['#B0B8D1', '#5A76A8', '#001D6E']
 
 
@@ -717,3 +717,4 @@ elif pagina == "Razão tickers":
     else:
         plotar_ratio(ticker1, ticker2,
                      st.session_state.start_date, st.session_state.end_date)
+
