@@ -13,69 +13,25 @@ import yfinance as yf
 import matplotlib.pyplot as plt
 from datetime import date
 from dateutil.relativedelta import relativedelta
-from pathlib import Path
 
-# Pipeline automático de dados CVM
-from cvm_pipeline import executar_pipeline
+# --- CONFIGURAÇÕES DE LOCALIZAÇÃO E PÁGINA ---
+# ADICIONE ESTA NOVA FUNÇÃO NA PARTE 2
 
 st.set_page_config(layout="wide", page_title="Análise Consolidada de Carteiras")
 st.title('📊 Dashboard: Análise de Gestoras e Ativos')
 
 # --- CONSTANTES E NOMES DE ARQUIVOS ---
 CAMINHO_DA_PASTA = "."
+PASTA_DADOS_FILTRADOS = "dados_filtrados"
 NOME_ARQUIVO_LISTA_FUNDOS = "lista_completa_fundos_para_analise.xlsx"
 ARQUIVO_TICKERS_LIMPOS = "tickers_unicos_limpos.json"
+
+# ALTERADO: Centralizamos os dados de mercado em um único arquivo
 ARQUIVO_ECONOMATICA_XLSX = "economatica.xlsx"
+
+# Meses para análise e paleta de cores para os gráficos
+MESES_PARA_ANALISE = ['202410','202411','202412','202501','202502','202503','202504']
 PALETA_DE_CORES = ['#B0B8D1', '#5A76A8', '#001D6E']
-
-# ==========================================================================
-# PIPELINE AUTOMÁTICO: ATUALIZAÇÃO DOS DADOS DA CVM
-# ==========================================================================
-
-with st.sidebar:
-    st.markdown("---")
-    st.subheader("🔄 Atualização de dados")
-    n_meses_pipeline = st.number_input(
-        "Meses retroativos a checar na CVM",
-        min_value=1, max_value=24, value=12, step=1,
-    )
-    forcar = st.checkbox("Forçar reprocessamento", value=False,
-                         help="Recria os parquets mesmo que já existam.")
-    if st.button("Atualizar dados da CVM", use_container_width=True):
-        with st.spinner("Baixando e processando dados da CVM..."):
-            meses_ok = executar_pipeline(
-                pasta_saida=CAMINHO_DA_PASTA,
-                n_meses=int(n_meses_pipeline),
-                forcar_reprocessamento=forcar,
-            )
-        if meses_ok:
-            st.success(f"Dados atualizados: {len(meses_ok)} meses disponíveis.")
-            st.cache_data.clear()
-            st.rerun()
-        else:
-            st.warning("Nenhum mês novo encontrado na CVM.")
-    st.markdown("---")
-
-# --- DETECÇÃO AUTOMÁTICA DOS MESES DISPONÍVEIS ---
-def detectar_meses_disponiveis(pasta: str) -> list[str]:
-    """Descobre automaticamente quais parquets consolidados existem na pasta."""
-    parquets = sorted(Path(pasta).glob("carteira_consolidada_*.parquet"))
-    meses = []
-    for p in parquets:
-        # extrai AAAAMM do nome do arquivo
-        parte = p.stem.replace("carteira_consolidada_", "")
-        if len(parte) == 6 and parte.isdigit():
-            meses.append(parte)
-    return meses
-
-MESES_PARA_ANALISE = detectar_meses_disponiveis(CAMINHO_DA_PASTA)
-
-if not MESES_PARA_ANALISE:
-    st.warning(
-        "Nenhum arquivo de carteira encontrado. "
-        "Use o botão **'Atualizar dados da CVM'** na barra lateral para baixar os dados."
-    )
-    st.stop()
 
 
 # ==========================================================================
@@ -285,7 +241,7 @@ pagina  = nav_container.selectbox("Página:", paginas)
 sidebar = filtros_container.empty()             # placeholder dos filtros
 
 # =======================================================================
-# PÁGINA 1 – ANÁLISE POR GESTORA
+# PÁGINA 1 – ANÁLISE POR GESTORA
 # =======================================================================
 if pagina == "Análise por gestora":
 
@@ -479,7 +435,7 @@ if pagina == "Análise por gestora":
 # ==========================================================================
 
 # =======================================================================
-# PÁGINA 2 – ANÁLISE POR ATIVO
+# PÁGINA 2 – ANÁLISE POR ATIVO
 # =======================================================================
 elif pagina == "Análise por ativo":
 
