@@ -11,7 +11,7 @@ import numpy as np
 import plotly.graph_objects as go
 import yfinance as yf
 import matplotlib.pyplot as plt
-from datetime import date
+from datetime import date, datetime
 from dateutil.relativedelta import relativedelta
 
 # --- CONFIGURAÇÕES DE LOCALIZAÇÃO E PÁGINA ---
@@ -77,6 +77,10 @@ def carregar_e_processar_planilha_wide(caminho_arquivo, nome_planilha, nome_colu
     try:
         df_wide = pd.read_excel(caminho_arquivo, sheet_name=nome_planilha)
         ticker_column_name = df_wide.columns[0]
+
+        # Filtra apenas colunas cujo cabeçalho já é datetime (ignora colunas como "D0")
+        colunas_data = [c for c in df_wide.columns[1:] if isinstance(c, (pd.Timestamp, datetime))]
+        df_wide = df_wide[[ticker_column_name] + colunas_data]
 
         df_long = df_wide.melt(
             id_vars=[ticker_column_name],
@@ -176,6 +180,18 @@ df_liquidez = carregar_e_processar_planilha_wide(
     'liquidez',
     'Volume_Medio_Financeiro_60d'
 )
+
+# Avisa se algum mês da análise está fora da cobertura do economatica.xlsx
+meses_economatica = set(df_market_caps['MesAno'].unique())
+meses_faltando = [m for m in MESES_PARA_ANALISE if m not in meses_economatica]
+if meses_faltando:
+    st.warning(
+        f"⚠️ Os seguintes meses estão em MESES_PARA_ANALISE mas **não têm cobertura** "
+        f"no economatica.xlsx (colunas sem data válida no cabeçalho): "
+        f"**{', '.join(meses_faltando)}**. "
+        f"Market Cap e Liquidez aparecerão como N/A para esses meses. "
+        f"Corrija o cabeçalho da planilha ou remova esses meses de MESES_PARA_ANALISE."
+    )
 
 if mapa_gestora_fundo is None or dados_brutos is None or df_market_caps is None or df_liquidez is None:
     st.error("Falha no carregamento de um dos arquivos base. O dashboard não pode continuar.");
@@ -717,4 +733,3 @@ elif pagina == "Razão tickers":
     else:
         plotar_ratio(ticker1, ticker2,
                      st.session_state.start_date, st.session_state.end_date)
-
