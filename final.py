@@ -251,7 +251,9 @@ filtros_container = st.sidebar.container()      # filtros que mudam
 paginas = ["Análise por gestora",
            "Análise por ativo",
            "Movimentações relevantes",
-           "Razão tickers"]
+           "Razão tickers",
+           "Overlap entre gestoras",
+           "Pressão de liquidez"]
 pagina  = nav_container.selectbox("Página:", paginas)
 
 sidebar = filtros_container.empty()             # placeholder dos filtros
@@ -735,19 +737,12 @@ elif pagina == "Razão tickers":
                      st.session_state.start_date, st.session_state.end_date)
 
 
-
-
-
-
-
-
-
 # ==========================================================================
 # PARTE 8: ABA 5 - OVERLAP ENTRE GESTORAS
 # ==========================================================================
- 
+
 elif pagina == "Overlap entre gestoras":
- 
+
     with sidebar.container():
         st.header("Filtros de Overlap")
         datas_disp_ov = sorted(df_final["DT_COMPTC"].unique(), reverse=True)
@@ -762,24 +757,24 @@ elif pagina == "Overlap entre gestoras":
             min_value=0.0, max_value=5.0, value=0.5, step=0.1,
             key="f_min_peso_overlap"
         )
- 
+
     st.header("Overlap entre Gestoras", divider="blue")
- 
+
     df_ov = df_final[df_final["DT_COMPTC"] == mes_ov].copy()
     df_ov["Perc_PL"] = df_ov["Valor_Consolidado_R"] / df_ov["PL_Total_Gestora_Mes"] * 100
- 
+
     # Filtra posições acima do peso mínimo
     df_ov = df_ov[df_ov["Perc_PL"] >= min_peso]
- 
+
     gestoras_ov = sorted(df_ov["Gestora"].unique())
- 
+
     if len(gestoras_ov) < 2:
         st.warning("São necessárias pelo menos 2 gestoras com posições para calcular overlap.")
         st.stop()
- 
+
     # Monta dicionário: gestora -> set de ativos
     carteiras = {g: set(df_ov[df_ov["Gestora"] == g]["Ativo"]) for g in gestoras_ov}
- 
+
     # Matriz de overlap: % de ativos em comum em relação à união (Jaccard)
     n = len(gestoras_ov)
     matriz = np.zeros((n, n))
@@ -791,9 +786,9 @@ elif pagina == "Overlap entre gestoras":
                 intersec = carteiras[g1] & carteiras[g2]
                 uniao    = carteiras[g1] | carteiras[g2]
                 matriz[i][j] = (len(intersec) / len(uniao) * 100) if uniao else 0.0
- 
+
     df_matriz = pd.DataFrame(matriz, index=gestoras_ov, columns=gestoras_ov)
- 
+
     # --- Heatmap ---
     st.subheader(
         f"Heatmap de Similaridade – {pd.to_datetime(mes_ov).strftime('%B de %Y')}",
@@ -803,10 +798,10 @@ elif pagina == "Overlap entre gestoras":
         "Índice de Jaccard: % de ativos em comum sobre a união das carteiras de cada par de gestoras. "
         f"Considera apenas posições com peso ≥ {min_peso:.1f}% do PL."
     )
- 
+
     # Texto de anotação para cada célula
     anotacoes = [[f"{v:.0f}%" for v in row] for row in matriz]
- 
+
     fig_hm = go.Figure(go.Heatmap(
         z=df_matriz.values,
         x=gestoras_ov,
@@ -825,16 +820,16 @@ elif pagina == "Overlap entre gestoras":
         margin=dict(l=20, r=20, t=40, b=40),
     )
     st.plotly_chart(fig_hm, use_container_width=True)
- 
+
     st.markdown("---")
- 
+
     # --- Detalhamento: ativos em comum entre par selecionado ---
     st.subheader("Detalhamento por Par de Gestoras", divider="blue")
     col_g1, col_g2 = st.columns(2)
     g1_sel = col_g1.selectbox("Gestora A:", gestoras_ov, key="ov_g1")
     g2_sel = col_g2.selectbox("Gestora B:", gestoras_ov,
                                index=min(1, len(gestoras_ov) - 1), key="ov_g2")
- 
+
     if g1_sel == g2_sel:
         st.info("Selecione duas gestoras diferentes para ver os ativos em comum.")
     else:
@@ -861,19 +856,19 @@ elif pagina == "Overlap entre gestoras":
                     f"% PL {g2_sel}":         f"{perc2:.2f}%" if pd.notna(perc2) else "N/A",
                 })
             st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
- 
- 
+
+
 # ==========================================================================
 # PARTE 9: ABA 6 - PRESSÃO DE LIQUIDEZ AGREGADA
 # ==========================================================================
- 
+
 elif pagina == "Pressão de liquidez":
- 
+
     # Thresholds do semáforo (dias p/ zerar agregado)
     LIMITE_VERDE    = 5    # até 5 dias: ok
     LIMITE_AMARELO  = 15   # 5–15 dias: atenção
                            # acima de 15: crítico
- 
+
     with sidebar.container():
         st.header("Filtros de Liquidez")
         datas_disp_liq = sorted(df_final["DT_COMPTC"].unique(), reverse=True)
@@ -887,26 +882,26 @@ elif pagina == "Pressão de liquidez":
         st.markdown("**Thresholds do semáforo (dias p/ zerar)**")
         lim_verde   = st.number_input("🟢 Verde abaixo de:", value=LIMITE_VERDE,   min_value=1, key="lim_v")
         lim_amarelo = st.number_input("🟡 Amarelo abaixo de:", value=LIMITE_AMARELO, min_value=2, key="lim_a")
- 
+
     st.header("Pressão de Liquidez Agregada", divider="blue")
     st.caption(
         "Pressão = soma dos dias necessários para todas as gestoras zerarem suas posições em cada ativo, "
         "assumindo que cada gestora pode negociar até 20% do volume médio diário de 60 dias."
     )
- 
+
     # --- Prepara dados do mês selecionado ---
     df_liq = df_final[df_final["DT_COMPTC"] == mes_liq].copy()
- 
+
     if "Volume_Medio_Financeiro_60d" not in df_liq.columns or df_liq["Volume_Medio_Financeiro_60d"].isna().all():
         st.warning("Dados de liquidez não disponíveis para o mês selecionado.")
         st.stop()
- 
+
     liq_ok = df_liq["Volume_Medio_Financeiro_60d"].notna() & (df_liq["Volume_Medio_Financeiro_60d"] > 0)
     df_liq.loc[liq_ok, "Dias_Zerar_20"] = (
         df_liq.loc[liq_ok, "Valor_Consolidado_R"] /
         (0.20 * df_liq.loc[liq_ok, "Volume_Medio_Financeiro_60d"])
     ) / 1000
- 
+
     # Agrega por ativo: soma dos dias de todas as gestoras
     pressao = (
         df_liq.groupby("Ativo")
@@ -920,7 +915,7 @@ elif pagina == "Pressão de liquidez":
         .dropna(subset=["Pressao_Dias"])
         .sort_values("Pressao_Dias", ascending=False)
     )
- 
+
     def semaforo(dias):
         if dias < lim_verde:
             return "🟢"
@@ -928,20 +923,20 @@ elif pagina == "Pressão de liquidez":
             return "🟡"
         else:
             return "🔴"
- 
+
     pressao["Risco"] = pressao["Pressao_Dias"].apply(semaforo)
- 
+
     # ---- SEÇÃO 1: Semáforo + Ranking ----
     st.subheader(
         f"Ranking de Pressão – {pd.to_datetime(mes_liq).strftime('%B de %Y')}",
         divider="blue"
     )
- 
+
     col_v, col_a, col_r = st.columns(3)
     col_v.metric("🟢 Ativos ok",      len(pressao[pressao["Risco"] == "🟢"]))
     col_a.metric("🟡 Atenção",         len(pressao[pressao["Risco"] == "🟡"]))
     col_r.metric("🔴 Crítico",          len(pressao[pressao["Risco"] == "🔴"]))
- 
+
     tabela_pressao = pressao.copy()
     tabela_pressao["Valor Total (R$)"]   = tabela_pressao["Valor_Total_R"].apply(formatar_moeda_brl)
     tabela_pressao["Pressão (dias)"]     = tabela_pressao["Pressao_Dias"].apply(lambda x: f"{x:.1f}")
@@ -949,20 +944,20 @@ elif pagina == "Pressão de liquidez":
     tabela_pressao["Liq. Média (R$ mil)"] = tabela_pressao["Liq_Media_R"].apply(
         lambda x: f"{x:,.0f}" if pd.notna(x) else "N/A"
     )
- 
+
     st.dataframe(
         tabela_pressao[["Risco", "Ativo", "Pressão (dias)", "Gestoras expostas",
                          "Valor Total (R$)", "Liq. Média (R$ mil)"]],
         use_container_width=True, hide_index=True
     )
- 
+
     # ---- SEÇÃO 2: Gráfico de barras top-20 ----
     st.markdown("---")
     st.subheader("Top 20 – Ativos com Maior Pressão", divider="blue")
- 
+
     top20 = pressao.head(20).sort_values("Pressao_Dias")
     cores_bar = top20["Risco"].map({"🟢": "#2ecc71", "🟡": "#f39c12", "🔴": "#e74c3c"})
- 
+
     fig_bar_liq = go.Figure(go.Bar(
         x=top20["Pressao_Dias"],
         y=top20["Ativo"],
@@ -987,11 +982,11 @@ elif pagina == "Pressão de liquidez":
         margin=dict(l=10, r=60, t=30, b=40),
     )
     st.plotly_chart(fig_bar_liq, use_container_width=True)
- 
+
     # ---- SEÇÃO 3: Evolução mensal da pressão ----
     st.markdown("---")
     st.subheader("Evolução Mensal da Pressão por Ativo", divider="blue")
- 
+
     # Seleciona ativos para acompanhar (default: top-5 do mês selecionado)
     top5_default = pressao.head(5)["Ativo"].tolist()
     todos_ativos_liq = sorted(df_final["Ativo"].dropna().unique())
@@ -1001,13 +996,13 @@ elif pagina == "Pressão de liquidez":
         default=top5_default,
         key="evo_liq_ativos"
     )
- 
+
     if not ativos_evo:
         st.info("Selecione ao menos um ativo acima.")
     else:
         # Calcula pressão por ativo/mês para todos os meses
         df_evo_liq = df_final[df_final["Ativo"].isin(ativos_evo)].copy()
- 
+
         liq_ok_evo = (
             df_evo_liq["Volume_Medio_Financeiro_60d"].notna() &
             (df_evo_liq["Volume_Medio_Financeiro_60d"] > 0)
@@ -1016,7 +1011,7 @@ elif pagina == "Pressão de liquidez":
             df_evo_liq.loc[liq_ok_evo, "Valor_Consolidado_R"] /
             (0.20 * df_evo_liq.loc[liq_ok_evo, "Volume_Medio_Financeiro_60d"])
         ) / 1000
- 
+
         pressao_evo = (
             df_evo_liq.groupby(["DT_COMPTC", "Ativo"])["Dias_Zerar_20"]
             .sum()
@@ -1025,7 +1020,7 @@ elif pagina == "Pressão de liquidez":
         )
         pressao_evo["Mês"] = pd.to_datetime(pressao_evo["DT_COMPTC"]).dt.strftime("%b/%y")
         pressao_evo.sort_values("DT_COMPTC", inplace=True)
- 
+
         fig_evo_liq = px.line(
             pressao_evo,
             x="Mês", y="Dias_Zerar_20", color="Ativo",
@@ -1056,4 +1051,3 @@ elif pagina == "Pressão de liquidez":
             legend_title_text="Ativo",
         )
         st.plotly_chart(fig_evo_liq, use_container_width=True)
-        
