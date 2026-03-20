@@ -799,21 +799,47 @@ elif pagina == "Overlap entre gestoras":
         f"Considera apenas posições com peso ≥ {min_peso:.1f}% do PL."
     )
 
-    # Texto de anotação para cada célula
-    anotacoes = [[f"{v:.0f}%" for v in row] for row in matriz]
+    # Máscara: diagonal recebe NaN para não puxar a escala de cores.
+    # A diagonal é plotada separadamente como anotação neutra.
+    matriz_masked = matriz.astype(float).copy()
+    np.fill_diagonal(matriz_masked, np.nan)
+
+    # zmax dinâmico: maior valor fora da diagonal (mínimo 1 para não crashar)
+    off_diag = matriz_masked[~np.isnan(matriz_masked)]
+    zmax_real = float(off_diag.max()) if len(off_diag) > 0 else 1.0
+
+    # Anotações: off-diagonal mostram o valor; diagonal mostra "■" em cinza
+    anotacoes = [
+        [("■" if i == j else f"{matriz[i][j]:.0f}%") for j in range(n)]
+        for i in range(n)
+    ]
 
     fig_hm = go.Figure(go.Heatmap(
-        z=df_matriz.values,
+        z=matriz_masked,
         x=gestoras_ov,
         y=gestoras_ov,
         text=anotacoes,
         texttemplate="%{text}",
         colorscale="Blues",
-        zmin=0, zmax=100,
+        zmin=0,
+        zmax=zmax_real,
         colorbar=dict(title="Similaridade (%)"),
         hoverongaps=False,
-        hovertemplate="<b>%{y}</b> × <b>%{x}</b><br>Overlap: %{z:.1f}%<extra></extra>"
+        hovertemplate="<b>%{y}</b> × <b>%{x}</b><br>Overlap: %{z:.1f}%<extra></extra>",
+        # Células NaN (diagonal) ficam com cor de fundo neutra
+        showscale=True,
     ))
+
+    # Sobrepõe anotações da diagonal em cinza médio para não sumir no branco
+    for i, g in enumerate(gestoras_ov):
+        fig_hm.add_annotation(
+            x=g, y=g,
+            text="100%",
+            showarrow=False,
+            font=dict(color="#666666", size=12),
+            xref="x", yref="y",
+        )
+
     fig_hm.update_layout(
         height=max(400, n * 60),
         xaxis=dict(tickangle=-35),
