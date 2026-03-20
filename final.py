@@ -30,8 +30,15 @@ ARQUIVO_TICKERS_LIMPOS = "tickers_unicos_limpos.json"
 ARQUIVO_ECONOMATICA_XLSX = "economatica.xlsx"
 
 # Meses para análise e paleta de cores para os gráficos
-MESES_PARA_ANALISE = ['202410','202411','202412','202501','202502','202503','202504', '202505', '202506', '202507', '202508']
-PALETA_DE_CORES = ['#B0B8D1', '#5A76A8', '#001D6E']
+# Detecta automaticamente os meses disponíveis a partir dos parquets na pasta.
+# Fallback para lista hardcoded caso nenhum parquet seja encontrado.
+_parquets_disponiveis = sorted(
+    p.stem.replace("carteira_consolidada_", "")
+    for p in Path(CAMINHO_DA_PASTA).glob("carteira_consolidada_??????.parquet")
+)
+MESES_PARA_ANALISE = _parquets_disponiveis if _parquets_disponiveis else [
+    '202410','202411','202412','202501','202502','202503','202504','202505','202506','202507','202508'
+]PALETA_DE_CORES = ['#B0B8D1', '#5A76A8', '#001D6E']
 
 
 # ==========================================================================
