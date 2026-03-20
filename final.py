@@ -13,6 +13,7 @@ import yfinance as yf
 import matplotlib.pyplot as plt
 from datetime import date, datetime
 from dateutil.relativedelta import relativedelta
+from pathlib import Path
 
 # --- CONFIGURAÇÕES DE LOCALIZAÇÃO E PÁGINA ---
 # ADICIONE ESTA NOVA FUNÇÃO NA PARTE 2
