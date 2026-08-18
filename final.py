@@ -30,8 +30,26 @@ ARQUIVO_TICKERS_LIMPOS = "tickers_unicos_limpos.json"
 # ALTERADO: Centralizamos os dados de mercado em um único arquivo
 ARQUIVO_ECONOMATICA_XLSX = "economatica.xlsx"
 
-# Meses para análise e paleta de cores para os gráficos
-MESES_PARA_ANALISE = ['202402', '202403', '202404', '202405', '202406', '202407', '202408', '202409', '202410', '202411', '202412', '202501', '202502', '202503', '202504', '202505', '202506', '202507', '202508', '202509', '202510', '202511', '202512', '202601']
+# Meses para análise: descobertos automaticamente a partir dos parquets
+# consolidados existentes na pasta (não precisa mais editar essa lista à mão
+# toda vez que um novo mês for adicionado pelo cvm_pipeline.py).
+# MES_INICIO_ANALISE mantém o início original (Out/2024), que é o primeiro
+# mês com cobertura de Market Cap/Liquidez na planilha economatica.xlsx.
+MES_INICIO_ANALISE = "202410"
+
+def _descobrir_meses_disponiveis(caminho_da_pasta, mes_minimo=None):
+    """Varre a pasta em busca de 'carteira_consolidada_AAAAMM.parquet' e
+    retorna a lista de meses (AAAAMM) disponíveis, em ordem cronológica,
+    a partir de mes_minimo (inclusive), se informado."""
+    pasta = Path(caminho_da_pasta)
+    arquivos = pasta.glob("carteira_consolidada_[0-9][0-9][0-9][0-9][0-9][0-9].parquet")
+    meses = sorted(a.stem.replace("carteira_consolidada_", "") for a in arquivos)
+    if mes_minimo:
+        meses = [m for m in meses if m >= mes_minimo]
+    return meses
+
+MESES_PARA_ANALISE = _descobrir_meses_disponiveis(CAMINHO_DA_PASTA, mes_minimo=MES_INICIO_ANALISE)
+
 PALETA_DE_CORES = ['#B0B8D1', '#5A76A8', '#001D6E']
 
 
