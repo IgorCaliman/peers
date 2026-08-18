@@ -371,24 +371,37 @@ if pagina == "Análise por gestora":
     col2.metric("Nº de Ativos na Carteira",  f"{len(dados_mes)}")
 
     # ---------- tabela de posições ----------
+    # OBS: mantemos as colunas como número (não como texto formatado) e usamos
+    # column_config só pra exibição. Formatar como texto (ex: "R$ 1.234,56")
+    # quebra a ordenação da grade e a exportação p/ CSV (o botão de download
+    # do st.dataframe exporta o valor cru da célula — se for texto, tanto a
+    # grade quanto o Excel ordenam por ordem alfabética, não numérica).
     st.subheader("Exposição Total em Ações (Consolidado)")
     tabela = dados_mes.sort_values("Perc_PL", ascending=False).copy()
-    tabela["Valor (R$)"]       = tabela["Valor_Consolidado_R"].apply(formatar_moeda_brl)
-    tabela["Market Cap (R$)"]  = tabela["Market_Cap_Cia_R"].apply(formatar_moeda_brl)
-    tabela["% do PL"]          = tabela["Perc_PL"].apply(lambda x: f"{x:.2f}%")
-    tabela["% da Cia"]         = tabela["Perc_Cia"].apply(
-        lambda x: f"{x:.2f}%" if pd.notna(x) else "N/A"
-    )
+    # tabela_disp é só pra exibição (nomes de coluna amigáveis); `tabela`
+    # continua com os nomes originais pro gráfico/ordenação mais abaixo.
+    tabela_disp = tabela.rename(columns={
+        "Valor_Consolidado_R": "Valor (R$)",
+        "Market_Cap_Cia_R": "Market Cap (R$)",
+        "Perc_PL": "% do PL",
+        "Perc_Cia": "% da Cia",
+    })
     cols = ["Ativo", "Valor (R$)", "% do PL", "Market Cap (R$)", "% da Cia"]
-    if "Dias_Zerar_20" in tabela.columns:
-        tabela["Dias p/ Zerar (20% Liq.)"] = tabela["Dias_Zerar_20"].apply(
-            lambda x: f"{x:.1f}" if pd.notna(x) else "N/A"
-        )
-        tabela["Dias p/ Zerar (30% Liq.)"] = tabela["Dias_Zerar_30"].apply(
-            lambda x: f"{x:.1f}" if pd.notna(x) else "N/A"
-        )
+    col_config = {
+        "Valor (R$)": st.column_config.NumberColumn(format="R$ %,.2f"),
+        "Market Cap (R$)": st.column_config.NumberColumn(format="R$ %,.2f"),
+        "% do PL": st.column_config.NumberColumn(format="%.2f%%"),
+        "% da Cia": st.column_config.NumberColumn(format="%.2f%%"),
+    }
+    if "Dias_Zerar_20" in tabela_disp.columns:
+        tabela_disp = tabela_disp.rename(columns={
+            "Dias_Zerar_20": "Dias p/ Zerar (20% Liq.)",
+            "Dias_Zerar_30": "Dias p/ Zerar (30% Liq.)",
+        })
         cols.extend(["Dias p/ Zerar (20% Liq.)", "Dias p/ Zerar (30% Liq.)"])
-    st.dataframe(tabela[cols], use_container_width=True, hide_index=True)
+        col_config["Dias p/ Zerar (20% Liq.)"] = st.column_config.NumberColumn(format="%.1f")
+        col_config["Dias p/ Zerar (30% Liq.)"] = st.column_config.NumberColumn(format="%.1f")
+    st.dataframe(tabela_disp[cols], use_container_width=True, hide_index=True, column_config=col_config)
 
     st.markdown("---")
 
@@ -557,23 +570,30 @@ elif pagina == "Análise por ativo":
         ) / 1000
 
     # tabela de gestoras
+    # (colunas mantidas numéricas + column_config pra exibição — ver comentário
+    # na tabela de "Exposição Total em Ações" sobre por que isso importa pra
+    # ordenação/exportação em CSV.)
     df_display = df_ativo.sort_values("Valor_Consolidado_R", ascending=False).copy()
-    df_display["Posição (R$)"] = df_display["Valor_Consolidado_R"].apply(formatar_moeda_brl)
-    df_display["% da Cia"] = df_display["Perc_Cia"].apply(
-        lambda x: f"{x:.2f}%" if pd.notna(x) else "N/A"
-    )
+    df_display = df_display.rename(columns={
+        "Valor_Consolidado_R": "Posição (R$)",
+        "Perc_Cia": "% da Cia",
+    })
 
     cols = ["Gestora", "Posição (R$)", "% da Cia"]
+    col_config = {
+        "Posição (R$)": st.column_config.NumberColumn(format="R$ %,.2f"),
+        "% da Cia": st.column_config.NumberColumn(format="%.2f%%"),
+    }
     if "Dias_Zerar_20" in df_display.columns:
-        df_display["Dias p/ Zerar (20% Liq.)"] = df_display["Dias_Zerar_20"].apply(
-            lambda x: f"{x:.1f}" if pd.notna(x) else "N/A"
-        )
-        df_display["Dias p/ Zerar (30% Liq.)"] = df_display["Dias_Zerar_30"].apply(
-            lambda x: f"{x:.1f}" if pd.notna(x) else "N/A"
-        )
+        df_display = df_display.rename(columns={
+            "Dias_Zerar_20": "Dias p/ Zerar (20% Liq.)",
+            "Dias_Zerar_30": "Dias p/ Zerar (30% Liq.)",
+        })
         cols.extend(["Dias p/ Zerar (20% Liq.)", "Dias p/ Zerar (30% Liq.)"])
+        col_config["Dias p/ Zerar (20% Liq.)"] = st.column_config.NumberColumn(format="%.1f")
+        col_config["Dias p/ Zerar (30% Liq.)"] = st.column_config.NumberColumn(format="%.1f")
 
-    st.dataframe(df_display[cols], use_container_width=True, hide_index=True)
+    st.dataframe(df_display[cols], use_container_width=True, hide_index=True, column_config=col_config)
     st.markdown("---")
 
     # donut de participação
@@ -651,11 +671,14 @@ elif pagina == "Movimentações relevantes":
             novas["Valor_Consolidado_R_fim"] /
             novas["PL_Total_Gestora_Mes_fim"]
         ).replace([np.inf, -np.inf], 0) * 100
-        novas["Part. Final"] = novas["Perc_Cia_fim"].apply(lambda x: f"{x:.3f}%")
-        novas["% PL Final"]  = novas["% PL Final"].apply(lambda x: f"{x:.2f}%")
+        novas = novas.rename(columns={"Perc_Cia_fim": "Part. Final"})
         st.dataframe(
             novas[["Gestora", "Ativo", "Part. Final", "% PL Final"]],
-            use_container_width=True, hide_index=True
+            use_container_width=True, hide_index=True,
+            column_config={
+                "Part. Final": st.column_config.NumberColumn(format="%.3f%%"),
+                "% PL Final": st.column_config.NumberColumn(format="%.2f%%"),
+            }
         )
 
     # ---------------- AUMENTOS ----------------
@@ -678,18 +701,24 @@ elif pagina == "Movimentações relevantes":
     if aumentos.empty:
         st.write("Nenhum aumento relevante.")
     else:
-        aumentos["Part. Ini"]  = aumentos["Perc_Cia_ini"].apply(lambda x: f"{x:.3f}%")
-        aumentos["Part. Fin"]  = aumentos["Perc_Cia_fim"].apply(lambda x: f"{x:.3f}%")
-        aumentos["Var_Rel"]    = aumentos["Var_Rel"].apply(lambda x: f"{x:.0f}%")
         aumentos["% PL Final"] = (
             aumentos["Valor_Consolidado_R_fim"] /
             aumentos["PL_Total_Gestora_Mes_fim"]
         ).replace([np.inf, -np.inf], 0) * 100
-        aumentos["% PL Final"] = aumentos["% PL Final"].apply(lambda x: f"{x:.2f}%")
+        aumentos = aumentos.rename(columns={
+            "Perc_Cia_ini": "Part. Ini",
+            "Perc_Cia_fim": "Part. Fin",
+        })
         st.dataframe(
             aumentos[["Gestora", "Ativo", "Part. Ini", "Part. Fin",
                       "% PL Final", "Var_Rel"]],
-            use_container_width=True, hide_index=True
+            use_container_width=True, hide_index=True,
+            column_config={
+                "Part. Ini": st.column_config.NumberColumn(format="%.3f%%"),
+                "Part. Fin": st.column_config.NumberColumn(format="%.3f%%"),
+                "Var_Rel": st.column_config.NumberColumn(format="%.0f%%"),
+                "% PL Final": st.column_config.NumberColumn(format="%.2f%%"),
+            }
         )
 
     # ---------------- REDUÇÕES ----------------
@@ -709,22 +738,30 @@ elif pagina == "Movimentações relevantes":
     if reducoes.empty:
         st.write("Nenhuma redução relevante.")
     else:
-        reducoes["Part. Ini"] = reducoes["Perc_Cia_ini"].apply(lambda x: f"{x:.3f}%")
-        reducoes["Part. Fin"] = reducoes["Perc_Cia_fim"].apply(lambda x: f"{x:.3f}%")
-        reducoes["Var_Rel"]   = reducoes["Var_Rel"].apply(lambda x: f"{x:.0f}%")
+        reducoes = reducoes.rename(columns={
+            "Perc_Cia_ini": "Part. Ini",
+            "Perc_Cia_fim": "Part. Fin",
+        })
         reducoes["% PL Final"] = (
             reducoes["Valor_Consolidado_R_fim"] /
             reducoes["PL_Total_Gestora_Mes_fim"]
         ).replace([np.inf, -np.inf], 0) * 100
-        # se posição zerou, mostra "Zerou"
+        # "% PL Final" fica como texto (não dá pra manter numérico e mostrar
+        # "Zerou" ao mesmo tempo); as demais colunas ficam numéricas para
+        # ordenar/exportar corretamente.
         reducoes["% PL Final"] = reducoes.apply(
-            lambda r: "Zerou" if r["Perc_Cia_fim"] == 0
+            lambda r: "Zerou" if r["Part. Fin"] == 0
             else f"{r['% PL Final']:.2f}%", axis=1
         )
         st.dataframe(
             reducoes[["Gestora", "Ativo", "Part. Ini", "Part. Fin",
                       "% PL Final", "Var_Rel"]],
-            use_container_width=True, hide_index=True
+            use_container_width=True, hide_index=True,
+            column_config={
+                "Part. Ini": st.column_config.NumberColumn(format="%.3f%%"),
+                "Part. Fin": st.column_config.NumberColumn(format="%.3f%%"),
+                "Var_Rel": st.column_config.NumberColumn(format="%.0f%%"),
+            }
         )
 
 # ==========================================================================
@@ -1017,18 +1054,25 @@ elif pagina == "Pressão de liquidez":
     col_a.metric("🟡 Atenção",         len(pressao[pressao["Risco"] == "🟡"]))
     col_r.metric("🔴 Crítico",          len(pressao[pressao["Risco"] == "🔴"]))
 
+    # (colunas numéricas + column_config — mesmo motivo das outras tabelas:
+    # texto formatado quebra ordenação na grade e na exportação p/ CSV.)
     tabela_pressao = pressao.copy()
-    tabela_pressao["Valor Total (R$)"]   = tabela_pressao["Valor_Total_R"].apply(formatar_moeda_brl)
-    tabela_pressao["Pressão (dias)"]     = tabela_pressao["Pressao_Dias"].apply(lambda x: f"{x:.1f}")
-    tabela_pressao["Gestoras expostas"]  = tabela_pressao["N_Gestoras"].astype(int)
-    tabela_pressao["Liq. Média (R$ mil)"] = tabela_pressao["Liq_Media_R"].apply(
-        lambda x: f"{x:,.0f}" if pd.notna(x) else "N/A"
-    )
+    tabela_pressao["Gestoras expostas"] = tabela_pressao["N_Gestoras"].astype(int)
+    tabela_pressao = tabela_pressao.rename(columns={
+        "Valor_Total_R": "Valor Total (R$)",
+        "Pressao_Dias": "Pressão (dias)",
+        "Liq_Media_R": "Liq. Média (R$ mil)",
+    })
 
     st.dataframe(
         tabela_pressao[["Risco", "Ativo", "Pressão (dias)", "Gestoras expostas",
                          "Valor Total (R$)", "Liq. Média (R$ mil)"]],
-        use_container_width=True, hide_index=True
+        use_container_width=True, hide_index=True,
+        column_config={
+            "Pressão (dias)": st.column_config.NumberColumn(format="%.1f"),
+            "Valor Total (R$)": st.column_config.NumberColumn(format="R$ %,.2f"),
+            "Liq. Média (R$ mil)": st.column_config.NumberColumn(format="%,.0f"),
+        }
     )
 
     # ---- SEÇÃO 2: Gráfico de barras top-20 ----
