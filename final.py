@@ -52,6 +52,22 @@ MESES_PARA_ANALISE = _descobrir_meses_disponiveis(CAMINHO_DA_PASTA, mes_minimo=M
 
 PALETA_DE_CORES = ['#B0B8D1', '#5A76A8', '#001D6E']
 
+# Filtros de "ações" usados para reduzir os dados brutos da CVM (que trazem
+# debêntures, opções, BDRs etc. além de ações) já no carregamento — isso
+# evita carregar/concatenar/mesclar ~3-4x mais linhas do que o necessário.
+TIPOS_APLIC_INTERESSE_ACOES = [
+    'Ações', 'Certificado ou recibo de depósito de valores mobiliários',
+    'Ações e outros TVM cedidos em empréstimo',
+]
+TIPOS_ATIVO_ACAO = [
+    'Ação ordinária', 'Ação preferencial', 'Certificado de depósito de ações',
+    'Recibo de subscrição', 'UNIT',
+]
+
+# Colunas de texto de baixa cardinalidade que valem a pena virar 'category'
+# (grande economia de memória num DataFrame com milhões de linhas).
+COLUNAS_CATEGORICAS = ['DENOM_SOCIAL', 'TP_APLIC', 'TP_ATIVO', 'CD_ATIVO']
+
 
 # ==========================================================================
 # PARTE 2: FUNÇÕES DE CARREGAMENTO DE DADOS
@@ -73,17 +89,36 @@ def carregar_mapeamento_gestora_fundo(caminho_arquivo_excel):
 
 @st.cache_data
 def carregar_dados_historicos(caminho_da_pasta, meses):
-    """Carrega os arquivos Parquet mensais JÁ CONSOLIDADOS."""
+    """Carrega os arquivos Parquet mensais JÁ CONSOLIDADOS.
+
+    Já filtra para apenas os tipos de aplicação/ativo de "ações" (o dado
+    bruto da CVM traz também debêntures, opções, BDRs etc., que nunca são
+    usados pelo resto do app e representam ~70% das linhas) e descarta a
+    coluna DS_ATIVO (não utilizada). Isso reduz bastante o pico de memória,
+    o que importa em ambientes com RAM limitada como o Streamlit Cloud.
+    """
     lista_dfs_completos = []
     for mes in meses:
         try:
             path_consolidado = os.path.join(caminho_da_pasta, f'carteira_consolidada_{mes}.parquet')
             df_mes = pd.read_parquet(path_consolidado)
+            if 'DS_ATIVO' in df_mes.columns:
+                df_mes = df_mes.drop(columns=['DS_ATIVO'])
+            df_mes = df_mes[
+                df_mes['TP_APLIC'].isin(TIPOS_APLIC_INTERESSE_ACOES)
+                & df_mes['TP_ATIVO'].isin(TIPOS_ATIVO_ACAO)
+            ].copy()
             lista_dfs_completos.append(df_mes)
         except FileNotFoundError:
             st.error(f"Arquivo consolidado para o mês {mes} não encontrado: '{path_consolidado}'.");
             st.stop()
-    return pd.concat(lista_dfs_completos, ignore_index=True) if lista_dfs_completos else None
+    if not lista_dfs_completos:
+        return None
+    dados = pd.concat(lista_dfs_completos, ignore_index=True)
+    for col in COLUNAS_CATEGORICAS:
+        if col in dados.columns:
+            dados[col] = dados[col].astype('category')
+    return dados
 
 
 # NOVO: Função genérica para ler market cap, liquidez ou qualquer outro dado no mesmo formato.
